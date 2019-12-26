@@ -42,16 +42,16 @@
  * Author: Ronald Huizer <ronald@immunityinc.com>
  *
  */
-#ifndef __PT_PROCESS_INTERNAL_H
-#define __PT_PROCESS_INTERNAL_H
+#ifndef PT_PROCESS_INTERNAL_H
+#define PT_PROCESS_INTERNAL_H
 
 #include <stdio.h>
 #include <stdint.h>
-#include <libptrace/avl.h>
 #include <libptrace/event.h>
 #include <libptrace/list.h>
 #include <libptrace/types.h>
 #include <libptrace/process.h>
+#include "avl.h"
 #include "arch.h"
 #include "event.h"
 #include "mutex.h"
@@ -112,7 +112,7 @@ struct pt_process
 	pt_address_t			remote_break_addr;
 
 	/* Upward indirection for python bindings. */
-	void				*__super;
+	void				*super_;
 
 	/* core this process belongs to. */
 	struct pt_core			*core;
@@ -149,4 +149,4 @@ pt_process_breakpoint_find_internal(struct pt_process *process, pt_address_t add
 };
 #endif
 
-#endif
+#endif	/* !PT_PROCESS_INTERNAL_H */

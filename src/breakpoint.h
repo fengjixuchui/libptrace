@@ -40,8 +40,8 @@
  * Author: Ronald Huizer <ronald@immunityinc.com>
  *
  */
-#ifndef __LIBPTRACE_BREAKPOINT_H
-#define __LIBPTRACE_BREAKPOINT_H
+#ifndef PT_BREAKPOINT_INTERNAL_H
+#define PT_BREAKPOINT_INTERNAL_H
 
 #include <stdint.h>
 #include <libptrace/charset.h>
@@ -49,6 +49,7 @@
 #include <libptrace/list.h>
 #include <libptrace/process.h>
 #include <libptrace/types.h>
+#include "avl.h"
 
 #define PT_BREAKPOINT_FLAG_NONE		0
 #define PT_BREAKPOINT_FLAG_ONESHOT	1
@@ -60,7 +61,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif	/* __cplusplus */
+#endif
 
 struct pt_breakpoint;
 typedef void (*pt_breakpoint_handler_t)(struct pt_thread *, void *cookie);
@@ -115,10 +116,10 @@ int pt_breakpoint_set(struct pt_process *process,
                       struct pt_breakpoint *breakpoint);
 int pt_breakpoint_remove(struct pt_process *process, struct pt_breakpoint *breakpoint);
 
-int _breakpoint_avl_compare(struct avl_node *, struct avl_node *);
+int breakpoint_avl_compare_(struct avl_node *, struct avl_node *);
 
 #ifdef __cplusplus
 };
-#endif	/* __cplusplus */
+#endif
 
-#endif	/* !__LIBPTRACE_BREAKPOINT_H */
+#endif	/* !PT_BREAKPOINT_INTERNAL_H */

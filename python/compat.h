@@ -31,22 +31,53 @@
  * UNDER WHICH SUCH LIABILITY IS ASSERTED AND REGARDLESS OF WHETHER CYXTERA HAS
  * BEEN ADVISED OF THE POSSIBILITY OF SUCH LIABILITY.
  *
- * libptrace_config.h
+ * compat.h
  *
- * libptrace configuration dependent definitions.
+ * Python2 and Python3 compatibility definitions.
  *
  * Dedicated to Yuzuyu Arielle Huizer.
  *
- * Author: Ronald Huizer <ronald@immunityinc.com>
+ * Author: Ronald Huizer <ronald@hexpedition.com>
  *
  */
-#ifndef __LIBPTRACE_CONFIG_H
-#define __LIBPTRACE_CONFIG_H
+#ifndef PYPT_COMPAT_INTERNAL_H
+#define PYPT_COMPAT_INTERNAL_H
 
-#include <sys/user.h>
+#include <python/Python.h>
 
-struct ptrace_fpu_state {
-	uint8_t __buf[sizeof(struct user_fpregs_struct)];
+#if PY_MAJOR_VERSION >= 3
+  #define MODULE_INIT_FUNC_NAME_(name) PyInit_##name
+  #define MODULE_INIT_FUNC_RETURN(x)  return (x)
+#else
+  #define MODULE_INIT_FUNC_NAME_(name) init##name
+  #define MODULE_INIT_FUNC_RETURN(x)  return
+#endif
+
+#define MODULE_INIT_FUNC_NAME(name) MODULE_INIT_FUNC_NAME_(name)
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyInt_FromLong      PyLong_FromLong
+  #define PyInt_FromSize_t    PyLong_FromSize_t
+  #define PyInt_FromSsize_t   PyLong_FromSsize_t
+  #define PyString_FromFormat PyUnicode_FromFormat
+  #define PyString_FromString PyUnicode_FromString
+#else
+  #define PyBytes_FromStringAndSize PyString_FromStringAndSize
+  #define PyBytes_AsStringAndSize   PyString_AsStringAndSize
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int                py_num_check(PyObject *o);
+int                py_string_check(PyObject *o);
+long               py_num_to_long(PyObject *o);
+unsigned long long py_num_to_ulonglong(PyObject *o);
+char *             py_string_to_utf8(PyObject *o);
+
+#ifdef __cplusplus
 };
+#endif
 
-#endif	/* __LIBPTRACE_CONFIG_H */
+#endif	/* !PYPT_COMPAT_INTERNAL_H */

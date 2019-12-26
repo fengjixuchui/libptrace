@@ -44,6 +44,7 @@
 #include <python/structmember.h>
 
 #include <libptrace/event.h>
+#include "compat.h"
 #include "event.h"
 #include "module.h"
 #include "thread.h"
@@ -52,8 +53,8 @@
 
 #define NULL_OR_PY_NONE(X) ((!X) || (X) == Py_None ? 0 : (X))
 
-static struct pypt_thread *__pypt_handle_thread_create_internal(struct pt_event_thread_create *);
-static struct pypt_module *__pypt_handle_module_load_internal(struct pt_event_module_load *);
+static struct pypt_thread *pypt_handle_thread_create_internal_(struct pt_event_thread_create *);
+static struct pypt_module *pypt_handle_module_load_internal_(struct pt_event_module_load *);
 
 static PyMethodDef pypt_event_handlers_methods[] = {
 	{ NULL }
@@ -87,7 +88,7 @@ static PyGetSetDef pypt_event_handlers_getset[] = {
 
 int pypt_handle_attached(struct pt_event_attached *event)
 {
-	struct pypt_process *self = event->process->__super;
+	struct pypt_process *self = event->process->super_;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 
@@ -102,7 +103,7 @@ int pypt_handle_attached(struct pt_event_attached *event)
 		ev.thread = self->process->main_thread;
 
 		/* Does its own GIL management */
-		if (__pypt_handle_thread_create_internal(&ev) == NULL)
+		if (pypt_handle_thread_create_internal_(&ev) == NULL)
 			PyErr_Print();
 	}
 
@@ -114,7 +115,7 @@ int pypt_handle_attached(struct pt_event_attached *event)
 		ev.cookie = self;
 
 		/* Does its own GIL management */
-		if (__pypt_handle_module_load_internal(&ev) == NULL)
+		if (pypt_handle_module_load_internal_(&ev) == NULL)
 			PyErr_Print();
 	}
 
@@ -139,7 +140,7 @@ out:
 
 int pypt_handle_process_exit(struct pt_event_process_exit *event)
 {
-	struct pypt_process *self = event->process->__super;
+	struct pypt_process *self = event->process->super_;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 
@@ -162,13 +163,13 @@ out:
 
 int pypt_handle_module_load(struct pt_event_module_load *event)
 {
-	struct pypt_process *self = event->module->process->__super;
+	struct pypt_process *self = event->module->process->super_;
 	struct pypt_module *module;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 
         /* Does its own GIL management */
-	module = __pypt_handle_module_load_internal(event);
+	module = pypt_handle_module_load_internal_(event);
 	if (module == NULL)
 		goto out;
 
@@ -192,9 +193,9 @@ out:
 }
 
 static struct pypt_module *
-__pypt_handle_module_load_internal(struct pt_event_module_load *ev)
+pypt_handle_module_load_internal_(struct pt_event_module_load *ev)
 {
-	struct pypt_process *self = ev->module->process->__super;
+	struct pypt_process *self = ev->module->process->super_;
 	struct pypt_module *module;
 	PyGILState_STATE gstate;
 
@@ -218,7 +219,7 @@ __pypt_handle_module_load_internal(struct pt_event_module_load *ev)
 	/* And link the python module in the module.  We do this here, so we
  	 * do not need to undo it on error or PyList_Append().
  	 */
-	ev->module->__super = module;
+	ev->module->super_ = module;
 
 	/* The list now holds the reference.  We don't need ours. */
 	Py_DECREF(module);
@@ -232,8 +233,8 @@ fail:
 
 int pypt_handle_module_unload(struct pt_event_module_unload *event)
 {
-	struct pypt_module *module = (struct pypt_module *)event->module->__super;
-	struct pypt_process *self = event->module->process->__super;
+	struct pypt_module *module = (struct pypt_module *)event->module->super_;
+	struct pypt_process *self = event->module->process->super_;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 	Py_ssize_t i;
@@ -280,14 +281,14 @@ out:
 
 int pypt_handle_thread_create(struct pt_event_thread_create *event)
 {
-	struct pypt_process *self = event->thread->process->__super;
+	struct pypt_process *self = event->thread->process->super_;
 	struct pypt_thread *thread;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 
 	/* Create a new thread and add it internally. */
 	/* Does its own GIL management */
-	thread = __pypt_handle_thread_create_internal(event);
+	thread = pypt_handle_thread_create_internal_(event);
 	if (thread == NULL)
 		goto out;
 
@@ -309,9 +310,9 @@ out:
 }
 
 static struct pypt_thread *
-__pypt_handle_thread_create_internal(struct pt_event_thread_create *ev)
+pypt_handle_thread_create_internal_(struct pt_event_thread_create *ev)
 {
-	struct pypt_process *self = ev->thread->process->__super;
+	struct pypt_process *self = ev->thread->process->super_;
 	struct pypt_thread *thread;
 	PyGILState_STATE gstate;
 
@@ -332,7 +333,7 @@ __pypt_handle_thread_create_internal(struct pt_event_thread_create *ev)
 	}
 
 	/* And link the python thread in the thread. */
-	ev->thread->__super = thread;
+	ev->thread->super_ = thread;
 
 	/* The list now holds the reference.  We don't need ours. */
 	Py_DECREF(thread);
@@ -346,8 +347,8 @@ fail:
 
 int pypt_handle_thread_exit(struct pt_event_thread_exit *event)
 {
-	struct pypt_thread *thread = (struct pypt_thread *)event->thread->__super;
-	struct pypt_process *self = event->thread->process->__super;
+	struct pypt_thread *thread = (struct pypt_thread *)event->thread->super_;
+	struct pypt_process *self = event->thread->process->super_;
 	PyGILState_STATE gstate;
 	PyObject *ret;
 	Py_ssize_t i;
@@ -395,7 +396,7 @@ out:
 
 int pypt_handle_breakpoint(struct pt_event_breakpoint *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -427,7 +428,7 @@ out:
 
 int pypt_handle_remote_break(struct pt_event_breakpoint *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -459,7 +460,7 @@ out:
 
 int pypt_handle_single_step(struct pt_event_single_step *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret;
@@ -484,7 +485,7 @@ out:
 
 int pypt_handle_segfault(struct pt_event_segfault *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyObject *address, *chance, *fault_address;
 	PyGILState_STATE gstate;
@@ -538,7 +539,7 @@ out:
 
 int pypt_handle_illegal_instruction(struct pt_event_illegal_instruction *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -570,7 +571,7 @@ out:
 
 int pypt_handle_divide_by_zero(struct pt_event_divide_by_zero *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -602,7 +603,7 @@ out:
 
 int pypt_handle_priv_instruction(struct pt_event_priv_instruction *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -634,7 +635,7 @@ out:
 
 int pypt_handle_unknown_exception(struct pt_event_unknown_exception *ev)
 {
-	struct pypt_thread *thread = ev->thread->__super;
+	struct pypt_thread *thread = ev->thread->super_;
 	struct pypt_process *self = thread->process;
 	PyGILState_STATE gstate;
 	PyObject *ret, *chance;
@@ -684,7 +685,7 @@ pypt_event_handlers_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	self->dict = PyDict_New();
 	if (!self->dict) {
-		self->ob_type->tp_free((PyObject*)self);
+		Py_TYPE(self)->tp_free((PyObject*)self);
 		return NULL;
 	}
 
@@ -710,7 +711,7 @@ static void
 pypt_event_handlers_dealloc(struct pypt_event_handlers *self)
 {
 	Py_XDECREF(self->dict);
-	self->ob_type->tp_free((PyObject*)self);
+	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 static int
@@ -732,7 +733,7 @@ static PyObject *pypt_event_handlers__repr__(struct pypt_event_handlers *self)
 				   "  segfault:%p illegal_instruction:%p\n"
 				   "  divide_by_zero:%p priv_instruction:%p\n"
 				   "  unknown_exception:%p\n",
-				   self->ob_type->tp_name, self,
+				   Py_TYPE(self)->tp_name, self,
 				   NULL_OR_PY_NONE(self->attached),
 				   NULL_OR_PY_NONE(self->process_exit),
 				   NULL_OR_PY_NONE(self->thread_create),
@@ -750,8 +751,7 @@ static PyObject *pypt_event_handlers__repr__(struct pypt_event_handlers *self)
 }
 
 PyTypeObject pypt_event_handlers_type = {
-	PyObject_HEAD_INIT(NULL)
-	0,					    /* ob_size */
+	PyVarObject_HEAD_INIT(NULL, 0)
 	"_ptrace.event_handlers",		    /* tp_name */
 	sizeof(struct pypt_event_handlers),	    /* tp_basicsize */
 	0,					    /* tp_itemsize */

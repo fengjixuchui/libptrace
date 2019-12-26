@@ -17,8 +17,8 @@
  * Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#ifndef __AVL_H
-#define __AVL_H
+#ifndef PT_AVL_INTERNAL_H
+#define PT_AVL_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,9 +26,9 @@ extern "C" {
 
 #include <inttypes.h>
 
-#define container_of(ptr, type, member) ({                      \
-	const typeof(((type *)0)->member) *__ptr = (ptr);       \
-	(type *)((char *)__ptr - (uintptr_t)(&((type *)0)->member)); })
+#define container_of(ptr, type, member) ({				\
+	const typeof(((type *)0)->member) *ptr_ = (ptr);		\
+	(type *)((char *)ptr_ - (uintptr_t)(&((type *)0)->member)); })
 
 struct avl_node {
 	struct avl_node		*left;
@@ -130,4 +130,4 @@ static inline struct avl_node *avl_tree_next_safe(struct avl_node *an)
 };
 #endif
 
-#endif
+#endif	/* !PT_AVL_INTERNAL_H */

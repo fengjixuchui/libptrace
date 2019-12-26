@@ -47,6 +47,7 @@
 #include <libptrace/error.h>
 #include "../src/windows/cconv.h"
 
+#include "compat.h"
 #include "cconv.h"
 #include "thread.h"
 #include "utils.h"
@@ -71,7 +72,7 @@ pypt_cconv_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	self->dict = PyDict_New();
 
 	if (!self->dict) {
-		self->ob_type->tp_free((PyObject *)self);
+		Py_TYPE(self)->tp_free((PyObject *)self);
 		return NULL;
 	}
 
@@ -82,10 +83,10 @@ static void
 pypt_cconv_dealloc(struct pypt_cconv *self)
 {
 	Py_XDECREF(self->dict);
-	self->ob_type->tp_free((PyObject *)self);
+	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-static const char __fmt_valid[] = "diulpz";
+static const char fmt_valid_[] = "diulpz";
 
 static PyObject *
 pypt_cconv_args_get(PyObject *cls, PyObject *args)
@@ -110,7 +111,7 @@ pypt_cconv_args_get(PyObject *cls, PyObject *args)
 	for (p = fmt; *p != 0; p++) {
 		if (p[0] != '%') continue;
 
-		if (p[1] == 0 || strchr(__fmt_valid, p[1]) == NULL) {
+		if (p[1] == 0 || strchr(fmt_valid_, p[1]) == NULL) {
 			PyErr_SetString(PyExc_TypeError, "invalid format string");
 			return NULL;
 		}
@@ -247,8 +248,7 @@ static PyMemberDef pypt_cconv_members[] = {
 };
 
 PyTypeObject pypt_cconv_type = {
-	PyObject_HEAD_INIT(NULL)
-	0,					/* ob_size */
+	PyVarObject_HEAD_INIT(NULL, 0)
 	"_ptrace.cconv",		        /* tp_name */
 	sizeof(struct pypt_cconv),		/* tp_basicsize */
 	0,					/* tp_itemsize */

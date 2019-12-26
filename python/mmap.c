@@ -42,6 +42,7 @@
  */
 #include <python/Python.h>
 #include <python/structmember.h>
+#include "compat.h"
 #include "mmap.h"
 #include "utils.h"
 
@@ -55,7 +56,7 @@ pypt_mmap_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 	self->dict = PyDict_New();
 	if (!self->dict) {
-		self->ob_type->tp_free((PyObject*)self);
+		Py_TYPE(self)->tp_free((PyObject*)self);
 		return NULL;
 	}
 
@@ -98,7 +99,7 @@ pypt_mmap_dealloc(struct pypt_mmap *self)
 	Py_XDECREF(self->dict);
 	self->pyprocess = NULL;
 	pt_mmap_delete(self->mmap);
-	self->ob_type->tp_free((PyObject *)self);
+	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 // TODO: Add a real userland range depending on:
@@ -106,9 +107,9 @@ pypt_mmap_dealloc(struct pypt_mmap *self)
 //              - OS (linux/windows)
 
 static int
-_is_valid_range(unsigned long start, unsigned long end)
+is_valid_range_(unsigned long start, unsigned long end)
 {
-        if(!end || end < start)
+        if (!end || end < start)
                 return 0;
         return 1;
 }
@@ -123,7 +124,7 @@ pypt_mmap_add(struct pypt_mmap *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "ll|l", &start, &end, &flags))
 		goto err;
 
-        if(_is_valid_range(start,end)) {
+        if (is_valid_range_(start,end)) {
                 area = pt_mmap_find_exact_area(self->mmap, start, end);
                 if(area) {
                         PyOS_snprintf( buffer, sizeof(buffer), "Range [0x%.8lx,0x%.8lx] already in AVL tree.", start,end);
@@ -133,9 +134,9 @@ pypt_mmap_add(struct pypt_mmap *self, PyObject *args)
 
                 area = pt_mmap_area_new();
                 if(area) {
-                        area->_start = start;
-                        area->_end = end;
-                        area->flags = flags;
+                        area->start_ = start;
+                        area->end_   = end;
+                        area->flags  = flags;
                         pt_mmap_add_area(self->mmap, area);
                         Py_RETURN_NONE;
                 } else {
@@ -161,7 +162,7 @@ pypt_mmap_remove(struct pypt_mmap *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "ii", &start, &end))
 		goto err;
 
-        if(_is_valid_range(start,end)) {
+        if (is_valid_range_(start, end)) {
                 area = pt_mmap_find_exact_area(self->mmap, start, end);
                 if(!area) {
                         PyOS_snprintf( buffer, sizeof(buffer), "Range [0x%.8lx,0x%.8lx] not found.", start,end);
@@ -212,16 +213,16 @@ pypt_mmap_find(struct pypt_mmap *self, PyObject *args)
                 area = pt_mmap_find_all_area_from_address_start(self->mmap, start);
                 if(area) {
                         dict = PyDict_New();
-                        PYPT_MAP_INT32(start, area->_start);
-	                PYPT_MAP_INT32(end, area->_end);
+                        PYPT_MAP_INT32(start, area->start_);
+	                PYPT_MAP_INT32(end, area->end_);
 	                PYPT_MAP_INT32(flags, area->flags);
 	                PyList_SetItem(pyList, 0, dict);
 	                while(area) {
 	                        area = pt_mmap_find_all_area_from_address_next();
                                 if(area) {
                                         dict = PyDict_New();
-                                        PYPT_MAP_INT32(start, area->_start);
-	                                PYPT_MAP_INT32(end, area->_end);
+                                        PYPT_MAP_INT32(start, area->start_);
+	                                PYPT_MAP_INT32(end, area->end_);
 	                                PYPT_MAP_INT32(flags, area->flags);
 	                                PyList_Append(pyList, dict);
 	                        }
@@ -230,12 +231,12 @@ pypt_mmap_find(struct pypt_mmap *self, PyObject *args)
 	        }
 
         } else {
-                if(_is_valid_range(start,end)) {
+                if (is_valid_range_(start, end)) {
                         area = pt_mmap_find_all_area_from_range_start(self->mmap, start, end);
                         if(area) {
                                 dict = PyDict_New();
-                                PYPT_MAP_INT32(start, area->_start);
-	                        PYPT_MAP_INT32(end, area->_end);
+                                PYPT_MAP_INT32(start, area->start_);
+	                        PYPT_MAP_INT32(end, area->end_);
 	                        PYPT_MAP_INT32(flags, area->flags);
 	                        PyList_SetItem(pyList, 0, dict);
 
@@ -243,8 +244,8 @@ pypt_mmap_find(struct pypt_mmap *self, PyObject *args)
 	                                area = pt_mmap_find_all_area_from_range_next();
                                         if(area) {
                                                 dict = PyDict_New();
-                                                PYPT_MAP_INT32(start, area->_start);
-	                                        PYPT_MAP_INT32(end, area->_end);
+                                                PYPT_MAP_INT32(start, area->start_);
+	                                        PYPT_MAP_INT32(end, area->end_);
 	                                        PYPT_MAP_INT32(flags, area->flags);
 	                                        PyList_Append(pyList, dict);
 	                                }
@@ -289,8 +290,7 @@ static PyMemberDef pypt_mmap_members[] = {
 };
 
 PyTypeObject pypt_mmap_type = {
-	PyObject_HEAD_INIT(NULL)
-	0,					/* ob_size */
+	PyVarObject_HEAD_INIT(NULL, 0)
 	"_ptrace.mmap",				/* tp_name */
 	sizeof(struct pypt_mmap),		/* tp_basicsize */
 	0,					/* tp_itemsize */
